@@ -26,10 +26,11 @@ if __name__ == '__main__':
     
     ExcitationToInhibition=1
     GlobalInhibition=-5.8
+    BombToShiftInh=-0
     BombToShift=0.35
     ShiftToBomb=0.3
     #FMEToBump=4
-    FMEToShift=3
+    FMEToShift=4
     #BaseToFM=2
     CoupledInter=0.5
     CoupleToFM=BaseToFM=1.5
@@ -55,18 +56,23 @@ if __name__ == '__main__':
         if i==1:
             
             print>>output,i,1+ShiftingNeuron+i,BombToShift
+            print>>output,i+1,1+ShiftingNeuron+i,BombToShiftInh
             print>>output,1+ShiftingNeuron+i,i+1,ShiftToBomb
+
         elif i==NeuronNumber:
             
             print>>output,i,i+(2*ShiftingNeuron),BombToShift
+            print>>output,i-1,i+(2*ShiftingNeuron),BombToShiftInh
             print>>output,i+(2*ShiftingNeuron),i-1,ShiftToBomb
 
         else:
             
             print>>output,i,1+ShiftingNeuron+i,BombToShift
+            print>>output,i+1,1+ShiftingNeuron+i,BombToShiftInh
             print>>output,1+ShiftingNeuron+i,i+1,ShiftToBomb
     
             print>>output,i,i+(2*ShiftingNeuron),BombToShift
+            print>>output,i-1,i+(2*ShiftingNeuron),BombToShiftInh
             print>>output,i+(2*ShiftingNeuron),i-1,ShiftToBomb
 
     #for i in range(FMNe-2,FMNe+1):
