@@ -8,11 +8,11 @@
 tic
 
 ver distcomp        % show the version of Parallel Computing Toolbox
-%parpool('local',4) % parallel with 4 cores. (i7-7700 4C8T -> 4)
+parpool('local',4)  % parallel with 4 cores. (i7-7700 4C8T -> 4)
                     % please adjust to the actual processor core number.
 clc
 clear
-SimulationTime=1200;    % ms
+SimulationTime=1600;    % ms
 DeltaT=0.01;            % ms
 CameraFps=60;           % Hz of motion_estimation camera
 DeltaC=1000/CameraFps;  % ms
@@ -20,17 +20,18 @@ Vr=10;                  % membrane potential initial value
 Vth=130;                % membrane potential threshold value
 NoiseStrengthBase=0;    % set nonzero value to add noises
 %Velocity=[0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,6,7];
-Velocity=0:3;               % target Speed current(nA).
+Velocity=0:0.5:8;           % target Speed current(nA).
                             % should be adjusted to fit actual saliencies.
 
 % set parameters to produce first bump
 StimuluStrength=5.5;
 StimulusNeuron=1;
-StimulationOnset=75;            % start at 75 ms
-StimulationOffset=80;
+StimulationOnset=100;             % start at 75 ms
+StimulationOffset=125;
 StimulationOnset=StimulationOnset/DeltaT;
 StimulationOffset=StimulationOffset/DeltaT;
-Direction=[0,4,-4.5];           % direction=[no,right,left]
+Direction=[0,4,-4];             % direction=[no,right,left]
+%Direction=[0,7,-7];
 %Direction=[0,1.7,-4.5];
 ModulationCurrent=Direction(2); % set direction
 
@@ -58,9 +59,12 @@ c=c+100;
 % Bump,Shift,Inh,Couple,Base,FM
 a=[0.04,0.04,0.04,0.02,0.02,0.02];
 b=[0.1,0.1,0.1,0.2,0.2,0.2];
+%c=[-39.5,-52,-57,-45,-39.5,-57];
 c=[-39.5,-52,-57,-45,-39.5,-57];
-d=[0.1,0.1,0.1,0.1,0.1,0.1];
+%d=[0.1,0.1,0.1,0.1,0.1,0.1];
+d=[0.1,0.1,0.1,0.1,0.1,4];
 IB=[9.4,2,-2,16,10,-11];
+%IB=[6,-35,-2,16,10,-11];
 c=c+100;                            % change offset to make all voltage positive
 
 A=ones(TotalNe,1);
@@ -129,8 +133,8 @@ g1=transpose(full(spconvert(dlmread('Connection_Table_temp.txt'))));
 g2=transpose(full(spconvert(dlmread('Connection_Table_temp_short.txt'))));
 
 % simulating for each speeds
-for l=1:length(Velocity)
-%parfor l=1:length(Velocity)    % parallel for
+%for l=1:length(Velocity)
+parfor l=1:length(Velocity)     % parallel for
                                 % change back to "for" loop if encounter problems
     Speed=Velocity(l);
     
@@ -199,11 +203,13 @@ for l=1:length(Velocity)
         
         % set shift neuron bias current & coupled neuron firing rate
         if ModulationCurrent>0
-	        ExternalI(RightShiftNe)=ModulationCurrent;
+	        %ExternalI(RightShiftNe)=ModulationCurrent+Speed;
+            ExternalI(RightShiftNe)=ModulationCurrent;
 	        ExternalI(CoupledNe)=Speed;
         elseif ModulationCurrent<0
-	        ExternalI(LeftShiftNe)=abs(ModulationCurrent);
+	        %ExternalI(LeftShiftNe)=abs(ModulationCurrent)+Speed;
 	        ExternalI(CoupledNe)=Speed;
+            ExternalI(LeftShiftNe)=abs(ModulationCurrent);
         else
 	        ExternalI(ShiftNe)=0;
         end
@@ -261,6 +267,7 @@ for l=1:length(Velocity)
         fclose(fileID);
         copyfile(filename,foldername);
         
+        %{
         % save neuron input current medians
         formatSpec = '%dCurrentV_%d.txt';
         filename = sprintf(formatSpec,l,N);
@@ -268,6 +275,8 @@ for l=1:length(Velocity)
         median_record(TotalCurrent(:,N+1),fileID);
         fclose(fileID);
         copyfile(filename,foldername);
+        %}
+        
     end
     
     %{
@@ -297,6 +306,6 @@ delete *CurrentV_*.*
 delete *Prediction.txt
 delete *Bump.mat
 
-%delete(gcp('nocreate'));   % close parallel pools
+delete(gcp('nocreate'));   % close parallel pools
 
 toc
