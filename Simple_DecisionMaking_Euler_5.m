@@ -3,37 +3,34 @@
 % Excitatory neurons    Inhibitory neurons
 % TODO:
 % Use firing rate detection to output the bump position.
-% Currently this code use threshold detection(commented), not firing rate detection.
-
-tic
 
 ver distcomp        % show the version of Parallel Computing Toolbox
-parpool('local',4)  % parallel with 4 cores. (i7-7700 4C8T -> 4)
+%parpool('local',4) % parallel with 4 cores. (i7-7700 4C8T -> 4)
                     % please adjust to the actual processor core number.
+%tic
 clc
 clear
-SimulationTime=1600;    % ms
-DeltaT=0.01;            % ms
-CameraFps=60;           % Hz of motion_estimation camera
-DeltaC=1000/CameraFps;  % ms
-Vr=10;                  % membrane potential initial value
-Vth=130;                % membrane potential threshold value
-NoiseStrengthBase=0;    % set nonzero value to add noises
-%Velocity=[0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,6,7];
-Velocity=0:0.5:8;           % target Speed current(nA).
-                            % should be adjusted to fit actual saliencies.
+SimulationTime=4000;        % ms
+DeltaT=0.01;                % ms
+CameraFps=60;               % Hz of motion_estimation camera
+DeltaC=1000/CameraFps;      % ms
+Vr=10;                      % membrane potential initial value
+Vth=130;                    % membrane potential threshold value
+NoiseStrengthBase=0;        % set nonzero value to add noises
+Velocity=0.5;               % target Speed current(nA).
+SaSpeed=[1, -1, 1, -1, 1];  % saliency speed, update every 200ms
+SaBorder=1.4;               % border to switching between slow/fast
 
 % set parameters to produce first bump
 StimuluStrength=5.5;
 StimulusNeuron=1;
-StimulationOnset=100;             % start at 75 ms
+StimulationOnset=100;               % start at 100 ms
 StimulationOffset=125;
 StimulationOnset=StimulationOnset/DeltaT;
 StimulationOffset=StimulationOffset/DeltaT;
-Direction=[0,4,-4];             % direction=[no,right,left]
-%Direction=[0,7,-7];
-%Direction=[0,1.7,-4.5];
-ModulationCurrent=Direction(2); % set direction
+DirectionSlow=[0,4,-4];             % direction=[no,right,left]
+DirectionFast=[0,7,-7];             % same as above. Fast circuit needs higher current
+ModulationCurrent=DirectionSlow(2); % set direction
 
 % Neuron index
 BoundNe=1:8;        % main bump neurons
@@ -59,12 +56,11 @@ c=c+100;
 % Bump,Shift,Inh,Couple,Base,FM
 a=[0.04,0.04,0.04,0.02,0.02,0.02];
 b=[0.1,0.1,0.1,0.2,0.2,0.2];
-%c=[-39.5,-52,-57,-45,-39.5,-57];
 c=[-39.5,-52,-57,-45,-39.5,-57];
-%d=[0.1,0.1,0.1,0.1,0.1,0.1];
-d=[0.1,0.1,0.1,0.1,0.1,4];
-IB=[9.4,2,-2,16,10,-11];
-%IB=[6,-35,-2,16,10,-11];
+dFast=[0.1,0.1,0.1,0.1,0.1,0.1];
+dSlow=[0.1,0.1,0.1,0.1,0.1,10];
+IBslow=[9.4,2,-2,16,10,-11];
+IBfast=[6,-35,-2,16,10,-11];
 c=c+100;                            % change offset to make all voltage positive
 
 A=ones(TotalNe,1);
@@ -91,31 +87,39 @@ C(CoupledNe)=c(4);
 C(BaseFrequencyNe)=c(5);
 C(FMNe)=c(6);
 
-D=ones(TotalNe,1);
-D(BoundNe)=d(1);
-D(ShiftNe)=d(2);
-D(InhibitionNe)=d(3);
-D(CoupledNe)=d(4);
-D(BaseFrequencyNe)=d(5);
-D(FMNe)=d(6);
+D_Slow=ones(TotalNe,1);
+D_Slow(BoundNe)=dSlow(1);
+D_Slow(ShiftNe)=dSlow(2);
+D_Slow(InhibitionNe)=dSlow(3);
+D_Slow(CoupledNe)=dSlow(4);
+D_Slow(BaseFrequencyNe)=dSlow(5);
+D_Slow(FMNe)=dSlow(6);
+D_Fast=ones(TotalNe,1);
+D_Fast(BoundNe)=dFast(1);
+D_Fast(ShiftNe)=dFast(2);
+D_Fast(InhibitionNe)=dFast(3);
+D_Fast(CoupledNe)=dFast(4);
+D_Fast(BaseFrequencyNe)=dFast(5);
+D_Fast(FMNe)=dFast(6);
+D=D_Slow;
 
-Ibias=ones(TotalNe,1);
-Ibias(BoundNe)=IB(1);
-Ibias(ShiftNe)=IB(2);
-Ibias(InhibitionNe)=IB(3);
-Ibias(CoupledNe)=IB(4);
-Ibias(BaseFrequencyNe)=IB(5);
-Ibias(FMNe)=IB(6);
+Ibias_Slow=ones(TotalNe,1);
+Ibias_Slow(BoundNe)=IBslow(1);
+Ibias_Slow(ShiftNe)=IBslow(2);
+Ibias_Slow(InhibitionNe)=IBslow(3);
+Ibias_Slow(CoupledNe)=IBslow(4);
+Ibias_Slow(BaseFrequencyNe)=IBslow(5);
+Ibias_Slow(FMNe)=IBslow(6);
+Ibias_Fast=ones(TotalNe,1);
+Ibias_Fast(BoundNe)=IBfast(1);
+Ibias_Fast(ShiftNe)=IBfast(2);
+Ibias_Fast(InhibitionNe)=IBfast(3);
+Ibias_Fast(CoupledNe)=IBfast(4);
+Ibias_Fast(BaseFrequencyNe)=IBfast(5);
+Ibias_Fast(FMNe)=IBfast(6);
+Ibias=Ibias_Slow;
 
-%{
-A=[a(1)*ones(BoundNe,1);a(2)*ones(ShiftNe,1);a(3)*ones(InhibitionNe,1);a(4)*ones(CoupledNe,1);a(5)*ones(BaseFrequencyNe,1);a(6)*ones(FMNe,1)];
-B=[b(1)*ones(BoundNe,1);b(2)*ones(ShiftNe,1);b(3)*ones(InhibitionNe,1);b(4)*ones(CoupledNe,1);b(5)*ones(BaseFrequencyNe,1);b(6)*ones(FMNe,1)];
-C=[c(1)*ones(BoundNe,1);c(2)*ones(ShiftNe,1);c(3)*ones(InhibitionNe,1);c(4)*ones(CoupledNe,1);c(5)*ones(BaseFrequencyNe,1);c(6)*ones(FMNe,1)];
-D=[d(1)*ones(BoundNe,1);d(2)*ones(ShiftNe,1);d(3)*ones(InhibitionNe,1);d(4)*ones(CoupledNe,1);d(5)*ones(BaseFrequencyNe,1);d(6)*ones(FMNe,1)];
-Ibias=[IB(1)*ones(BoundNe,1);IB(2)*ones(ShiftNe,1);IB(3)*ones(InhibitionNe,1);IB(4)*ones(CoupledNe,1);IB(5)*ones(BaseFrequencyNe,1);IB(6)*ones(FMNe,1)];
-%}
-
-Inoise=NoiseStrengthBase*normrnd(0,1,[TotalNe,1]);
+Inoise=NoiseStrengthBase*normrnd(0,1,[TotalNe,1]);  % add some noises
 ExternalI=0*ones(TotalNe,1);
 
 v=Vr.*ones(TotalNe,1);
@@ -129,12 +133,19 @@ SynapticCurrent1=transpose([0;S1]);
 SynapticCurrent2=transpose([0;S2]);
 
 % read neuron weights
-g1=transpose(full(spconvert(dlmread('Connection_Table_temp.txt'))));
-g2=transpose(full(spconvert(dlmread('Connection_Table_temp_short.txt'))));
+g1_Slow=transpose(full(spconvert(dlmread('Connection_Table_Slow.txt'))));
+g2_Slow=transpose(full(spconvert(dlmread('Connection_Table_Slow_short.txt'))));
+g1_Fast=transpose(full(spconvert(dlmread('Connection_Table_Fast.txt'))));
+g2_Fast=transpose(full(spconvert(dlmread('Connection_Table_Fast_short.txt'))));
+g1=g1_Slow;
+g2=g2_Slow;
+
+% read speed chart
+chart = csvread('speedchart.csv');
 
 % simulating for each speeds
-%for l=1:length(Velocity)
-parfor l=1:length(Velocity)     % parallel for
+for l=1:length(Velocity)
+%parfor l=1:length(Velocity)    % parallel for
                                 % change back to "for" loop if encounter problems
     Speed=Velocity(l);
     
@@ -162,13 +173,53 @@ parfor l=1:length(Velocity)     % parallel for
     %}
 
     % main simulation loop
+    tic
+    m=1;
     for t=1:SimulationTime/DeltaT
-        disp(Velocity(l));
-        disp(t);
+        %disp(Velocity(l));
+        %disp(t);
+        
+        % update saliency info
+        if mod(t,800/DeltaT) == 1
+            SaSpeed_temp = SaSpeed(m);
+            if abs(SaSpeed_temp) < SaBorder   % slow circuit
+                if SaSpeed_temp < 0
+                    ModulationCurrent=DirectionSlow(3); % left
+                else
+                    ModulationCurrent=DirectionSlow(2); % right
+                end
+                D=D_Slow;
+                Ibias=Ibias_Slow;
+                g1=g1_Slow;
+                g2=g2_Slow;
+            else                            % fast circuit
+                if SaSpeed_temp < 0
+                    ModulationCurrent=DirectionFast(3); % left
+                else
+                    ModulationCurrent=DirectionFast(2); % right
+                end
+                D=D_Fast;
+                Ibias=Ibias_Fast;
+                g1=g1_Fast;
+                g2=g2_Fast;
+            end
+            [err, index]=min(abs(chart(:,2)-abs(SaSpeed_temp)));
+            Speed=chart(index,1);
+            m = m + 1;
+        end
+        
 
         Inoise=NoiseStrengthBase*normrnd(0,1,[TotalNe,1]);
 
+        % start the bump
         if t>StimulationOnset && t<=StimulationOffset
+            ExternalI(StimulusNeuron)=StimuluStrength;
+        else
+            ExternalI(StimulusNeuron)=0;
+        end
+        
+        % update(overwrite) the bump
+        if t_temp <= 25/DeltaT
             ExternalI(StimulusNeuron)=StimuluStrength;
         else
             ExternalI(StimulusNeuron)=0;
@@ -203,13 +254,19 @@ parfor l=1:length(Velocity)     % parallel for
         
         % set shift neuron bias current & coupled neuron firing rate
         if ModulationCurrent>0
-	        %ExternalI(RightShiftNe)=ModulationCurrent+Speed;
-            ExternalI(RightShiftNe)=ModulationCurrent;
-	        ExternalI(CoupledNe)=Speed;
+            if abs(SaSpeed_temp) >= SaBorder
+                ExternalI(RightShiftNe)=ModulationCurrent+Speed;
+            else
+                ExternalI(RightShiftNe)=ModulationCurrent;
+                ExternalI(CoupledNe)=Speed;
+            end
         elseif ModulationCurrent<0
-	        %ExternalI(LeftShiftNe)=abs(ModulationCurrent)+Speed;
-	        ExternalI(CoupledNe)=Speed;
-            ExternalI(LeftShiftNe)=abs(ModulationCurrent);
+            if abs(SaSpeed_temp) >= SaBorder
+                ExternalI(LeftShiftNe)=abs(ModulationCurrent)+Speed;
+            else
+                ExternalI(CoupledNe)=Speed;
+                ExternalI(LeftShiftNe)=abs(ModulationCurrent);
+            end
         else
 	        ExternalI(ShiftNe)=0;
         end
@@ -234,10 +291,12 @@ parfor l=1:length(Velocity)     % parallel for
         TotalCurrent(t+1,:)=temp;
                 
     end
+    toc
     
     foldername=num2str(Velocity(l));
     mkdir (foldername);
 
+    
     % save some datas
     for N=1:TotalNe
 
@@ -249,6 +308,7 @@ parfor l=1:length(Velocity)     % parallel for
         m.x=Potential(:,1);
         m.y=Potential(:,N+1);
         copyfile(strcat(num2str(l),'NeuronV_',num2str(N),'.mat'),foldername);
+        
         
         % save neuron input current
         fig=plot(TotalCurrent(:,1),TotalCurrent(:,N+1),'b-');
@@ -266,18 +326,9 @@ parfor l=1:length(Velocity)     % parallel for
         threshold_record(Potential(:,N+1),DeltaT,42.5,fileID);
         fclose(fileID);
         copyfile(filename,foldername);
-        
-        %{
-        % save neuron input current medians
-        formatSpec = '%dCurrentV_%d.txt';
-        filename = sprintf(formatSpec,l,N);
-        fileID = fopen(filename,'w');
-        median_record(TotalCurrent(:,N+1),fileID);
-        fclose(fileID);
-        copyfile(filename,foldername);
-        %}
-        
+                        
     end
+    
     
     %{
     % save where the bump is at
@@ -308,4 +359,4 @@ delete *Bump.mat
 
 delete(gcp('nocreate'));   % close parallel pools
 
-toc
+%toc

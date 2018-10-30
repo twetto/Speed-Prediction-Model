@@ -1,10 +1,7 @@
-#!/usr/bin/python2
+#/usr/bin/python2
 import numpy as np 
 from pylab import*
 import scipy as sp
-
-
-
 
 if __name__ == '__main__':
     NeuronNumber=8
@@ -12,46 +9,27 @@ if __name__ == '__main__':
     InhibitionNeuron=NeuronNumber+ShiftingNeuron*2+1
     CoupledNe=InhibitionNeuron+2
     BaseFrequencyNe=CoupledNe+1
-    #FMNe=BaseFrequencyNe+3
     FMNe=BaseFrequencyNe+1
-    
-    
     
     output=open('Connection_Table_temp.txt','w')
     output2=open('Connection_Table_temp_short.txt','w')
     #output3=open('Connection_LeftShfiting_Table_temp.txt','w')
     #output4=open('Connection_Inhibition_Table_temp.txt','w')
     
-    
-    
     ExcitationToInhibition=1
     GlobalInhibition=-5.8
     BombToShiftInh=-0
     BombToShift=0.35
     ShiftToBomb=0.3
-    #FMEToBump=4
     FMEToShift=4
-    #BaseToFM=2
     CoupledInter=0.5
     CoupleToFM=BaseToFM=1.5
-    '''
-    ExcitationToInhibition=0
-    GlobalInhibition=0
-    BombToShift=0
-    ShiftToBomb=0
-    FMEToBump=0
-    FMEToShift=0    
-    BaseToFM=0
-    CoupledInter=0
-    CoupleToFM=0
-    '''
+
     n=1
     for i in range(1,NeuronNumber+1):
         
-        #print>>output2,i,i+1,InterExcitation
         print>>output,i,InhibitionNeuron,ExcitationToInhibition
         print>>output,InhibitionNeuron,i,GlobalInhibition
-        #print>>output2,FMNe,i,FMEToBump
 
         if i==1:
             
@@ -75,18 +53,11 @@ if __name__ == '__main__':
             print>>output,i-1,i+(2*ShiftingNeuron),BombToShiftInh
             print>>output,i+(2*ShiftingNeuron),i-1,ShiftToBomb
 
-    #for i in range(FMNe-2,FMNe+1):
-    #    for j in range(FMNe-2,FMNe+1):
-    #        print>>output,i,j,0
     print>>output,FMNe,FMNe,0
 
     for i in range(NeuronNumber+1,NeuronNumber+ShiftingNeuron*2+1):
         print>>output2,FMNe,i,FMEToShift
-	#	for j in range(FMNe-2,FMNe+1):
-	#		print>>output2,j,i,FMEToShift
-    #for i in range(FMNe-2,FMNe+1):
-    #    print>>output2,BaseFrequencyNe,i,BaseToFM
-    #    print>>output2,CoupledNe,i,CoupleToFM
+
     print>>output2,BaseFrequencyNe,FMNe,BaseToFM
     print>>output2,CoupledNe,FMNe,CoupleToFM
     print>>output2,CoupledNe,CoupledNe-1,CoupledInter
