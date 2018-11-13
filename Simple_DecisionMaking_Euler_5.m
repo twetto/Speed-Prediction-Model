@@ -10,22 +10,22 @@ ver distcomp        % show the version of Parallel Computing Toolbox
 %tic
 clc
 clear
-SimulationTime=2000;        % ms
-DeltaT=0.1;                % ms
+SimulationTime=8000;        % ms
+DeltaT=0.01;                % ms
 CameraFps=60;               % Hz of motion_estimation camera
 DeltaC=1000/CameraFps;      % ms
 Vr=10;                      % membrane potential initial value
 Vth=130;                    % membrane potential threshold value
-NoiseStrengthBase=0;      % set nonzero value to add noises
+NoiseStrengthBase=0;        % set nonzero value to add noises
 Velocity=0.5;               % target Speed current(nA).
-SaSpeed=3;  % saliency speed, update every 200ms
+SaSpeed=[-2, -1, 1, 2];     % saliency speed, update every 200ms
 SaBorder=1.4;               % border to switching between slow/fast
 
 % set parameters to produce first bump
 StimuluStrength=5.5;
 StimulusNeuron=1;
 StimulationOnset=100;               % start at 100 ms
-StimulationOffset=125;
+StimulationOffset=150;
 StimulationOnset=StimulationOnset/DeltaT;
 StimulationOffset=StimulationOffset/DeltaT;
 DirectionSlow=[0,4,-4];             % direction=[no,right,left]
@@ -49,7 +49,7 @@ b=[0.1,0.1,0.1,0.2,0.2,0.2];
 c=[-39.5,-52,-57,-45,-39.5,-60];
 d=[0.1,0.1,0.1,0.1,0.1,0.1];
 IB=[9.5,2,-2,16,10,-11];
-c=c+100;
+c=c+100;ExternalI
 %}
 
 % set parameters for Izhikevich model equation
@@ -144,7 +144,8 @@ g2=g2_Slow;
 chart = csvread('speedchart.csv');
 
 % simulating for each speeds
-for l=1:length(SaSpeed)
+for l=1
+%for l=1:length(SaSpeed)
 %parfor l=1:length(SaSpeed)      % parallel for
                                 % change back to "for" loop if encounter problems
     %Speed=Velocity(l);
@@ -166,6 +167,8 @@ for l=1:length(SaSpeed)
     I=0*ones(TotalNe,1);
     TotalCurrent=zeros(SimulationTime/DeltaT+1,TotalNe+1);
     TotalCurrent(1,:)=transpose([0;I]);
+    UpdateStimulus=50;
+    t_updateTime = UpdateStimulus;
     %{
     BumpIsAt=zeros(SimulationTime/DeltaT+1,2);
     BumpIsAt_temp=0;
@@ -175,16 +178,16 @@ for l=1:length(SaSpeed)
 
     % main simulation loop
     tic
-    %m=1;
+    m=1;
     for t=1:SimulationTime/DeltaT
-        %disp(Velocity(l));
         %disp(t);
-        Speed=SaSpeed(l);
+        %Speed=SaSpeed(m);
         
         % update saliency info
-        %if mod(t,800/DeltaT) == 1
-            %SaSpeed_temp = SaSpeed(m);
-            SaSpeed_temp = SaSpeed(l);
+        if mod(t,2000/DeltaT) == 1
+            SaSpeed_temp = SaSpeed(m);
+            t_updateTime = 0;
+            %SaSpeed_temp = SaSpeed(l);
             if abs(SaSpeed_temp) < SaBorder % slow circuit
                 if SaSpeed_temp < 0
                     ModulationCurrent=DirectionSlow(3); % left
@@ -213,9 +216,11 @@ for l=1:length(SaSpeed)
             
             % set speed current
             [err, index]=min(abs(chart(:,2)-abs(SaSpeed_temp)));
-            %Speed=chart(index,1);
-            %m = m + 1;
-        %end
+            Speed=chart(index,1);
+            if m < length(SaSpeed)
+                m = m + 1;
+            end
+        end
         
 
         Inoise=NoiseStrengthBase*normrnd(0,1,[TotalNe,1]);
@@ -227,14 +232,17 @@ for l=1:length(SaSpeed)
             ExternalI(StimulusNeuron)=0;
         end
         
-        %{
         % update(overwrite) the bump
-        if t_temp <= 25/DeltaT
-            ExternalI(StimulusNeuron)=StimuluStrength;
+        if t_updateTime < UpdateStimulus/2
+            ExternalI(InhibitionNe) = ExternalI(InhibitionNe) + 16;
+            t_updateTime = t_updateTime + 1;
+        elseif t_updateTime < UpdateStimulus
+            ExternalI(InhibitionNe) = 0;
+            ExternalI(StimulusNeuron) = StimuluStrength;
+            t_updateTime = t_updateTime + 1;
         else
-            ExternalI(StimulusNeuron)=0;
+            ExternalI(StimulusNeuron) = 0;
         end
-        %}
         
         fired1=find(v(1:InhibitionNe)>=Vth);
         fired2=find(v(InhibitionNe+1:end)>=Vth);
