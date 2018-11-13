@@ -5,20 +5,20 @@
 % Use firing rate detection to output the bump position.
 
 ver distcomp        % show the version of Parallel Computing Toolbox
-%parpool('local',4) % parallel with 4 cores. (i7-7700 4C8T -> 4)
+%parpool('local',5)  % parallel with 4 cores. (i7-7700 4C8T -> 4)
                     % please adjust to the actual processor core number.
 %tic
 clc
 clear
-SimulationTime=4000;        % ms
-DeltaT=0.01;                % ms
+SimulationTime=2000;        % ms
+DeltaT=0.1;                % ms
 CameraFps=60;               % Hz of motion_estimation camera
 DeltaC=1000/CameraFps;      % ms
 Vr=10;                      % membrane potential initial value
 Vth=130;                    % membrane potential threshold value
-NoiseStrengthBase=0;        % set nonzero value to add noises
+NoiseStrengthBase=0;      % set nonzero value to add noises
 Velocity=0.5;               % target Speed current(nA).
-SaSpeed=[1, -1, 1, -1, 1];  % saliency speed, update every 200ms
+SaSpeed=3;  % saliency speed, update every 200ms
 SaBorder=1.4;               % border to switching between slow/fast
 
 % set parameters to produce first bump
@@ -144,10 +144,11 @@ g2=g2_Slow;
 chart = csvread('speedchart.csv');
 
 % simulating for each speeds
-for l=1:length(Velocity)
-%parfor l=1:length(Velocity)    % parallel for
+for l=1:length(SaSpeed)
+%parfor l=1:length(SaSpeed)      % parallel for
                                 % change back to "for" loop if encounter problems
-    Speed=Velocity(l);
+    %Speed=Velocity(l);
+    
     
     % do some initializations
     ExternalI=0*ones(TotalNe,1);
@@ -174,19 +175,23 @@ for l=1:length(Velocity)
 
     % main simulation loop
     tic
-    m=1;
+    %m=1;
     for t=1:SimulationTime/DeltaT
         %disp(Velocity(l));
         %disp(t);
+        Speed=SaSpeed(l);
         
         % update saliency info
-        if mod(t,800/DeltaT) == 1
-            SaSpeed_temp = SaSpeed(m);
-            if abs(SaSpeed_temp) < SaBorder   % slow circuit
+        %if mod(t,800/DeltaT) == 1
+            %SaSpeed_temp = SaSpeed(m);
+            SaSpeed_temp = SaSpeed(l);
+            if abs(SaSpeed_temp) < SaBorder % slow circuit
                 if SaSpeed_temp < 0
                     ModulationCurrent=DirectionSlow(3); % left
+                    StimulusNeuron=8;
                 else
                     ModulationCurrent=DirectionSlow(2); % right
+                    StimulusNeuron=1;
                 end
                 D=D_Slow;
                 Ibias=Ibias_Slow;
@@ -195,18 +200,22 @@ for l=1:length(Velocity)
             else                            % fast circuit
                 if SaSpeed_temp < 0
                     ModulationCurrent=DirectionFast(3); % left
+                    StimulusNeuron=8;
                 else
                     ModulationCurrent=DirectionFast(2); % right
+                    StimulusNeuron=1;
                 end
                 D=D_Fast;
                 Ibias=Ibias_Fast;
                 g1=g1_Fast;
                 g2=g2_Fast;
             end
+            
+            % set speed current
             [err, index]=min(abs(chart(:,2)-abs(SaSpeed_temp)));
-            Speed=chart(index,1);
-            m = m + 1;
-        end
+            %Speed=chart(index,1);
+            %m = m + 1;
+        %end
         
 
         Inoise=NoiseStrengthBase*normrnd(0,1,[TotalNe,1]);
@@ -218,12 +227,14 @@ for l=1:length(Velocity)
             ExternalI(StimulusNeuron)=0;
         end
         
+        %{
         % update(overwrite) the bump
         if t_temp <= 25/DeltaT
             ExternalI(StimulusNeuron)=StimuluStrength;
         else
             ExternalI(StimulusNeuron)=0;
         end
+        %}
         
         fired1=find(v(1:InhibitionNe)>=Vth);
         fired2=find(v(InhibitionNe+1:end)>=Vth);
@@ -273,7 +284,7 @@ for l=1:length(Velocity)
         
         I=ExternalI+S1+S2+Inoise+Ibias;
   
-        % Izhikevich model implemented by Runge-Kutta methods
+        % Izhikevich model implemented by Runge-Kutta 4 method
         fa1=funca(v,u,B,I,DeltaT);
         fb1=funcb(A,B,v,u,DeltaT);
         fa2=funca(v+DeltaT*0.5*fa1,u+DeltaT*0.5*fb1,B,I,DeltaT);
@@ -293,7 +304,9 @@ for l=1:length(Velocity)
     end
     toc
     
-    foldername=num2str(Velocity(l));
+    %foldername=num2str(Velocity(l));
+    %foldername=num2str(SaSpeed(l));
+    foldername=num2str(l);
     mkdir (foldername);
 
     
@@ -304,11 +317,12 @@ for l=1:length(Velocity)
         fig=plot(Potential(:,1),Potential(:,N+1),'b-');
         saveas(fig,strcat(num2str(l),'NeuronV_',num2str(N),'.png'));
         copyfile(strcat(num2str(l),'NeuronV_',num2str(N),'.png'),foldername);
+        %{
         m=matfile(sprintf('%dNeuronV_%d.mat',l,N),'writable',true);
         m.x=Potential(:,1);
         m.y=Potential(:,N+1);
         copyfile(strcat(num2str(l),'NeuronV_',num2str(N),'.mat'),foldername);
-        
+        %}
         
         % save neuron input current
         fig=plot(TotalCurrent(:,1),TotalCurrent(:,N+1),'b-');
