@@ -10,7 +10,7 @@ ver distcomp        % show the version of Parallel Computing Toolbox
 %tic
 clc
 clear
-SimulationTime=8000;        % ms
+SimulationTime=4000;        % ms
 DeltaT=0.01;                % ms
 CameraFps=60;               % Hz of motion_estimation camera
 DeltaC=1000/CameraFps;      % ms
@@ -18,7 +18,7 @@ Vr=10;                      % membrane potential initial value
 Vth=130;                    % membrane potential threshold value
 NoiseStrengthBase=0;        % set nonzero value to add noises
 Velocity=0.5;               % target Speed current(nA).
-SaSpeed=[-2, -1, 1, 2];     % saliency speed, update every 200ms
+SaSpeed=[-2, -1, 1, 2]; % saliency speed, update every 200ms
 SaBorder=1.4;               % border to switching between slow/fast
 
 % set parameters to produce first bump
@@ -167,7 +167,7 @@ for l=1
     I=0*ones(TotalNe,1);
     TotalCurrent=zeros(SimulationTime/DeltaT+1,TotalNe+1);
     TotalCurrent(1,:)=transpose([0;I]);
-    UpdateStimulus=50;
+    UpdateStimulus=StimulationOffset-StimulationOnset;
     t_updateTime = UpdateStimulus;
     %{
     BumpIsAt=zeros(SimulationTime/DeltaT+1,2);
@@ -184,7 +184,7 @@ for l=1
         %Speed=SaSpeed(m);
         
         % update saliency info
-        if mod(t,2000/DeltaT) == 1
+        if mod(t,1000/DeltaT) == 1
             SaSpeed_temp = SaSpeed(m);
             t_updateTime = 0;
             %SaSpeed_temp = SaSpeed(l);
@@ -225,24 +225,30 @@ for l=1
 
         Inoise=NoiseStrengthBase*normrnd(0,1,[TotalNe,1]);
 
+        
+        %{
         % start the bump
         if t>StimulationOnset && t<=StimulationOffset
             ExternalI(StimulusNeuron)=StimuluStrength;
         else
             ExternalI(StimulusNeuron)=0;
         end
+        %}        
         
+        %{        
         % update(overwrite) the bump
-        if t_updateTime < UpdateStimulus/2
-            ExternalI(InhibitionNe) = ExternalI(InhibitionNe) + 16;
+        if t_updateTime < UpdateStimulus
+            ExternalI(InhibitionNe) = 16;
             t_updateTime = t_updateTime + 1;
-        elseif t_updateTime < UpdateStimulus
+        %if t_updateTime < UpdateStimulus
+        elseif t_updateTime < UpdateStimulus*2
             ExternalI(InhibitionNe) = 0;
             ExternalI(StimulusNeuron) = StimuluStrength;
             t_updateTime = t_updateTime + 1;
         else
             ExternalI(StimulusNeuron) = 0;
         end
+        %}
         
         fired1=find(v(1:InhibitionNe)>=Vth);
         fired2=find(v(InhibitionNe+1:end)>=Vth);
@@ -272,6 +278,7 @@ for l=1
         S2=S2+sum(1*g2(:,fired2),2)-(S2/Tau2)*DeltaT;
         
         % set shift neuron bias current & coupled neuron firing rate
+        ExternalI(ShiftNe)=0;
         if ModulationCurrent>0
             if abs(SaSpeed_temp) >= SaBorder
                 ExternalI(RightShiftNe)=ModulationCurrent+Speed;
