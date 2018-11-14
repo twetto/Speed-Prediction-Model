@@ -18,14 +18,15 @@ Vr=10;                      % membrane potential initial value
 Vth=130;                    % membrane potential threshold value
 NoiseStrengthBase=0;        % set nonzero value to add noises
 Velocity=0.5;               % target Speed current(nA).
-SaSpeed=[-2, -1, 1, 2]; % saliency speed, update every 200ms
+SaSpeed=[1, 2, 3, 4]; % saliency speed, update every 200ms
 SaBorder=1.4;               % border to switching between slow/fast
 
 % set parameters to produce first bump
-StimuluStrength=5.5;
+%StimuluStrength=5.5;
+StimuluStrength=15.5;
 StimulusNeuron=1;
 StimulationOnset=100;               % start at 100 ms
-StimulationOffset=150;
+StimulationOffset=130;
 StimulationOnset=StimulationOnset/DeltaT;
 StimulationOffset=StimulationOffset/DeltaT;
 DirectionSlow=[0,4,-4];             % direction=[no,right,left]
@@ -149,12 +150,12 @@ for l=1
 %parfor l=1:length(SaSpeed)      % parallel for
                                 % change back to "for" loop if encounter problems
     %Speed=Velocity(l);
-    
+    Speed=0;
     
     % do some initializations
     ExternalI=0*ones(TotalNe,1);
     v=Vr.*ones(TotalNe,1);
-    v(TotalNe-1)=70;
+    v(BaseFrequencyNe)=70;
     u=10*ones(TotalNe,1);
     S1=0*ones(TotalNe,1);
     S2=0*ones(TotalNe,1);
@@ -167,6 +168,7 @@ for l=1
     I=0*ones(TotalNe,1);
     TotalCurrent=zeros(SimulationTime/DeltaT+1,TotalNe+1);
     TotalCurrent(1,:)=transpose([0;I]);
+    SaSpeed_temp=0;
     UpdateStimulus=StimulationOffset-StimulationOnset;
     t_updateTime = UpdateStimulus;
     %{
@@ -184,7 +186,7 @@ for l=1
         %Speed=SaSpeed(m);
         
         % update saliency info
-        if mod(t,1000/DeltaT) == 1
+        if mod(t,1000/DeltaT) == 5000
             SaSpeed_temp = SaSpeed(m);
             t_updateTime = 0;
             %SaSpeed_temp = SaSpeed(l);
@@ -235,20 +237,20 @@ for l=1
         end
         %}        
         
-        %{        
+                
         % update(overwrite) the bump
+        %if t_updateTime < UpdateStimulus/2
+            %ExternalI(InhibitionNe) = 16;
+            %t_updateTime = t_updateTime + 1;
         if t_updateTime < UpdateStimulus
-            ExternalI(InhibitionNe) = 16;
-            t_updateTime = t_updateTime + 1;
-        %if t_updateTime < UpdateStimulus
-        elseif t_updateTime < UpdateStimulus*2
+        %elseif t_updateTime < UpdateStimulus
             ExternalI(InhibitionNe) = 0;
             ExternalI(StimulusNeuron) = StimuluStrength;
             t_updateTime = t_updateTime + 1;
         else
             ExternalI(StimulusNeuron) = 0;
         end
-        %}
+        
         
         fired1=find(v(1:InhibitionNe)>=Vth);
         fired2=find(v(InhibitionNe+1:end)>=Vth);
