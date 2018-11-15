@@ -18,7 +18,7 @@ Vr=10;                      % membrane potential initial value
 Vth=130;                    % membrane potential threshold value
 NoiseStrengthBase=0;        % set nonzero value to add noises
 Velocity=0.5;               % target Speed current(nA).
-SaSpeed=[1, 2, 3, 4]; % saliency speed, update every 200ms
+SaSpeed=[0.8, 0.8, 0.8, 0.8]; % saliency speed, update every 200ms
 SaBorder=1.4;               % border to switching between slow/fast
 
 % set parameters to produce first bump
@@ -186,7 +186,7 @@ for l=1
         %Speed=SaSpeed(m);
         
         % update saliency info
-        if mod(t,1000/DeltaT) == 5000
+        if mod(t,1000/DeltaT) == 50/DeltaT
             SaSpeed_temp = SaSpeed(m);
             t_updateTime = 0;
             %SaSpeed_temp = SaSpeed(l);
@@ -301,6 +301,10 @@ for l=1
         
         I=ExternalI+S1+S2+Inoise+Ibias;
   
+        if t_updateTime >= UpdateStimulus
+            I(StimulusNeuron) = -4;
+        end
+        
         % Izhikevich model implemented by Runge-Kutta 4 method
         fa1=funca(v,u,B,I,DeltaT);
         fb1=funcb(A,B,v,u,DeltaT);
