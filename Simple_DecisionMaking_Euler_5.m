@@ -1,25 +1,25 @@
 % Created by Eugene M. Izhikevich, February 25, 2003
-% Modefied by Chen-Fu Yeh, 2018
+% Modified by Chen-Fu Yeh, 2018
 % Excitatory neurons    Inhibitory neurons
 % TODO:
 % Use firing rate detection to output the bump position.
 
 ver distcomp        % show the version of Parallel Computing Toolbox
-%parpool('local',5)  % parallel with 4 cores. (i7-7700 4C8T -> 4)
+%parpool('local',8) % parallel with 4 cores. (i7-7700 4C8T -> 4)
                     % please adjust to the actual processor core number.
 %tic
 clc
 clear
-SimulationTime=4000;        % ms
+SimulationTime=2000;        % ms
 DeltaT=0.01;                % ms
 CameraFps=60;               % Hz of motion_estimation camera
 DeltaC=1000/CameraFps;      % ms
 Vr=10;                      % membrane potential initial value
 Vth=130;                    % membrane potential threshold value
 NoiseStrengthBase=0;        % set nonzero value to add noises
-Velocity=0.5;               % target Speed current(nA).
-SaSpeed=[0.8, 0.8, 0.8, 0.8]; % saliency speed, update every 200ms
-SaBorder=1.4;               % border to switching between slow/fast
+Velocity=0.6:0.2:2;       % target Speed current(nA).
+SaSpeed=[1.4, 1.4];         % saliency speed, update every 200ms
+SaBorder=1.41436590305877;  % border to switching between slow/fast
 
 % set parameters to produce first bump
 %StimuluStrength=5.5;
@@ -145,11 +145,12 @@ g2=g2_Slow;
 chart = csvread('speedchart.csv');
 
 % simulating for each speeds
-for l=1
+for l=1:length(Velocity)
 %for l=1:length(SaSpeed)
 %parfor l=1:length(SaSpeed)      % parallel for
                                 % change back to "for" loop if encounter problems
     %Speed=Velocity(l);
+    SaSpeed=[Velocity(l), Velocity(l)];
     Speed=0;
     
     % do some initializations
@@ -190,7 +191,7 @@ for l=1
             SaSpeed_temp = SaSpeed(m);
             t_updateTime = 0;
             %SaSpeed_temp = SaSpeed(l);
-            if abs(SaSpeed_temp) < SaBorder % slow circuit
+            if abs(SaSpeed_temp) <= SaBorder    % slow circuit
                 if SaSpeed_temp < 0
                     ModulationCurrent=DirectionSlow(3); % left
                     StimulusNeuron=8;
@@ -198,11 +199,12 @@ for l=1
                     ModulationCurrent=DirectionSlow(2); % right
                     StimulusNeuron=1;
                 end
+                UpdateStimulus=50/DeltaT;
                 D=D_Slow;
                 Ibias=Ibias_Slow;
                 g1=g1_Slow;
                 g2=g2_Slow;
-            else                            % fast circuit
+            else                                % fast circuit
                 if SaSpeed_temp < 0
                     ModulationCurrent=DirectionFast(3); % left
                     StimulusNeuron=8;
@@ -210,6 +212,7 @@ for l=1
                     ModulationCurrent=DirectionFast(2); % right
                     StimulusNeuron=1;
                 end
+                UpdateStimulus=30/DeltaT;
                 D=D_Fast;
                 Ibias=Ibias_Fast;
                 g1=g1_Fast;
@@ -244,7 +247,7 @@ for l=1
             %t_updateTime = t_updateTime + 1;
         if t_updateTime < UpdateStimulus
         %elseif t_updateTime < UpdateStimulus
-            ExternalI(InhibitionNe) = 0;
+            %ExternalI(InhibitionNe) = 0;
             ExternalI(StimulusNeuron) = StimuluStrength;
             t_updateTime = t_updateTime + 1;
         else
@@ -282,14 +285,14 @@ for l=1
         % set shift neuron bias current & coupled neuron firing rate
         ExternalI(ShiftNe)=0;
         if ModulationCurrent>0
-            if abs(SaSpeed_temp) >= SaBorder
+            if abs(SaSpeed_temp) > SaBorder
                 ExternalI(RightShiftNe)=ModulationCurrent+Speed;
             else
                 ExternalI(RightShiftNe)=ModulationCurrent;
                 ExternalI(CoupledNe)=Speed;
             end
         elseif ModulationCurrent<0
-            if abs(SaSpeed_temp) >= SaBorder
+            if abs(SaSpeed_temp) > SaBorder
                 ExternalI(LeftShiftNe)=abs(ModulationCurrent)+Speed;
             else
                 ExternalI(CoupledNe)=Speed;
@@ -301,9 +304,11 @@ for l=1
         
         I=ExternalI+S1+S2+Inoise+Ibias;
   
+        %{
         if t_updateTime >= UpdateStimulus
             I(StimulusNeuron) = -4;
         end
+        %}
         
         % Izhikevich model implemented by Runge-Kutta 4 method
         fa1=funca(v,u,B,I,DeltaT);
