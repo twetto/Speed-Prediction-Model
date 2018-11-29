@@ -10,10 +10,11 @@ end
 % track for the trigger point
 for i=1:length(x)
     if (x(i) > threshold) && under_threshold
-        fprintf(fileID, 'Triggered on:\n%f ms, %d th data.\n', i*DeltaT, i);
+        %fprintf(fileID, 'Triggered on:\n%f ms, %d th data.\n', i*DeltaT, i);
+        fprintf(fileID, '%d\n', i);
         under_threshold = ~under_threshold;
     elseif (x(i) < threshold) && ~under_threshold
-        fprintf(fileID, 'Triggered off:\n%f ms, %d th data.\n',i*DeltaT, i);
+        %fprintf(fileID, 'Triggered off:\n%f ms, %d th data.\n',i*DeltaT, i);
         under_threshold = ~under_threshold;
     end 
 end

@@ -1,5 +1,5 @@
 % Read triggering histories and see if bump remains
-filenameout = 'success_bump_increseweight.txt';
+filenameout = 'success_bump.txt';
 fileIDout = fopen(filenameout,'w');
 BFG = [];
 for i=1:length(Velocity)

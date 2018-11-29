@@ -17,9 +17,9 @@ DeltaC=1000/CameraFps;      % ms
 Vr=10;                      % membrane potential initial value
 Vth=130;                    % membrane potential threshold value
 NoiseStrengthBase=0;        % set nonzero value to add noises
-Velocity=0.6:0.2:2;       % target Speed current(nA).
+Velocity=0:0.5:8;           % target Speed current(nA).
 SaSpeed=[1.4, 1.4];         % saliency speed, update every 200ms
-SaBorder=1.41436590305877;  % border to switching between slow/fast
+SaBorder=1.7308337;         % border to switching between slow/fast
 
 % set parameters to produce first bump
 %StimuluStrength=5.5;
@@ -32,6 +32,7 @@ StimulationOffset=StimulationOffset/DeltaT;
 DirectionSlow=[0,4,-4];             % direction=[no,right,left]
 DirectionFast=[0,7,-7];             % same as above. Fast circuit needs higher current
 ModulationCurrent=DirectionSlow(2); % set direction
+%ModulationCurrent=DirectionFast(2); % set direction
 
 % Neuron index
 BoundNe=1:8;        % main bump neurons
@@ -59,7 +60,8 @@ a=[0.04,0.04,0.04,0.02,0.02,0.02];
 b=[0.1,0.1,0.1,0.2,0.2,0.2];
 c=[-39.5,-52,-57,-45,-39.5,-57];
 dFast=[0.1,0.1,0.1,0.1,0.1,0.1];
-dSlow=[0.1,0.1,0.1,0.1,0.1,10];
+%dSlow=[0.1,0.1,0.1,0.1,0.1,10];
+dSlow=[0.1,0.1,0.1,0.1,0.1,6];
 IBslow=[9.4,2,-2,16,10,-11];
 IBfast=[6,-35,-2,16,10,-11];
 c=c+100;                            % change offset to make all voltage positive
@@ -103,6 +105,7 @@ D_Fast(CoupledNe)=dFast(4);
 D_Fast(BaseFrequencyNe)=dFast(5);
 D_Fast(FMNe)=dFast(6);
 D=D_Slow;
+%D=D_Fast;
 
 Ibias_Slow=ones(TotalNe,1);
 Ibias_Slow(BoundNe)=IBslow(1);
@@ -119,6 +122,7 @@ Ibias_Fast(CoupledNe)=IBfast(4);
 Ibias_Fast(BaseFrequencyNe)=IBfast(5);
 Ibias_Fast(FMNe)=IBfast(6);
 Ibias=Ibias_Slow;
+%Ibias=Ibias_Fast;
 
 Inoise=NoiseStrengthBase*normrnd(0,1,[TotalNe,1]);  % add some noises
 ExternalI=0*ones(TotalNe,1);
@@ -140,6 +144,8 @@ g1_Fast=transpose(full(spconvert(dlmread('Connection_Table_Fast.txt'))));
 g2_Fast=transpose(full(spconvert(dlmread('Connection_Table_Fast_short.txt'))));
 g1=g1_Slow;
 g2=g2_Slow;
+%g1=g1_Fast;
+%g2=g2_Fast;
 
 % read speed chart
 chart = csvread('speedchart.csv');
@@ -149,9 +155,9 @@ for l=1:length(Velocity)
 %for l=1:length(SaSpeed)
 %parfor l=1:length(SaSpeed)      % parallel for
                                 % change back to "for" loop if encounter problems
-    %Speed=Velocity(l);
-    SaSpeed=[Velocity(l), Velocity(l)];
-    Speed=0;
+    Speed=Velocity(l);
+    %SaSpeed=[Velocity(l), Velocity(l)];
+    %Speed=0;
     
     % do some initializations
     ExternalI=0*ones(TotalNe,1);
@@ -186,6 +192,7 @@ for l=1:length(Velocity)
         %disp(t);
         %Speed=SaSpeed(m);
         
+        %{
         % update saliency info
         if mod(t,1000/DeltaT) == 50/DeltaT
             SaSpeed_temp = SaSpeed(m);
@@ -226,21 +233,19 @@ for l=1:length(Velocity)
                 m = m + 1;
             end
         end
-        
+        %}
 
         Inoise=NoiseStrengthBase*normrnd(0,1,[TotalNe,1]);
-
         
-        %{
+        
         % start the bump
         if t>StimulationOnset && t<=StimulationOffset
             ExternalI(StimulusNeuron)=StimuluStrength;
         else
             ExternalI(StimulusNeuron)=0;
         end
-        %}        
-        
                 
+        %{                
         % update(overwrite) the bump
         %if t_updateTime < UpdateStimulus/2
             %ExternalI(InhibitionNe) = 16;
@@ -253,7 +258,7 @@ for l=1:length(Velocity)
         else
             ExternalI(StimulusNeuron) = 0;
         end
-        
+        %}
         
         fired1=find(v(1:InhibitionNe)>=Vth);
         fired2=find(v(InhibitionNe+1:end)>=Vth);
@@ -282,6 +287,7 @@ for l=1:length(Velocity)
         S1=S1+sum(1*g1(:,fired1),2)-(S1/Tau1)*DeltaT;
         S2=S2+sum(1*g2(:,fired2),2)-(S2/Tau2)*DeltaT;
         
+        %{
         % set shift neuron bias current & coupled neuron firing rate
         ExternalI(ShiftNe)=0;
         if ModulationCurrent>0
@@ -298,6 +304,19 @@ for l=1:length(Velocity)
                 ExternalI(CoupledNe)=Speed;
                 ExternalI(LeftShiftNe)=abs(ModulationCurrent);
             end
+        else
+	        ExternalI(ShiftNe)=0;
+        end
+        %}
+        
+        if ModulationCurrent>0
+	        ExternalI(RightShiftNe)=ModulationCurrent;
+            %ExternalI(RightShiftNe)=ModulationCurrent+Speed;
+	        ExternalI(CoupledNe)=Speed;
+        elseif ModulationCurrent<0
+	        ExternalI(LeftShiftNe)=abs(ModulationCurrent);
+            %ExternalI(LeftShiftNe)=ModulationCurrent+Speed;
+	        ExternalI(CoupledNe)=Speed;
         else
 	        ExternalI(ShiftNe)=0;
         end
